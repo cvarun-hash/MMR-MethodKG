@@ -2076,16 +2076,95 @@ def build_data_quality_report(raw_df, cleaned_df, flagged_df, annotation_df,
 # Main
 # -----------------------------
 
+PROCESSED_OUTPUT_FILES = [
+    "cleaned_nsf_awards_2000_2025.csv",
+    "nsf_awards_with_methodology_flags.csv",
+    "annotation_sample_2000_2025.csv",
+    "project_text_cluster_report.csv",
+    "annotation_project_text_cluster_report.csv",
+    "data_quality_report.csv",
+]
+
+EDGE_OUTPUT_FILES = [
+    "award_pi_edges.csv",
+    "pi_collaboration_edges.csv",
+    "award_institution_edges.csv",
+    "award_program_edges.csv",
+]
+
+
+def resolve_path(path_value, repo_root: Path) -> Path:
+    """Resolve CLI paths relative to the repo root unless absolute."""
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return repo_root / path
+
+
+def check_overwrite(paths, overwrite: bool):
+    """Fail fast if any output already exists and --overwrite was not passed."""
+    existing = [p for p in paths if p.exists()]
+    if existing and not overwrite:
+        shown = "\n".join(f"  - {p}" for p in existing[:20])
+        extra = "" if len(existing) <= 20 else f"\n  ... and {len(existing) - 20} more"
+        raise FileExistsError(
+            "Refusing to overwrite existing MethodKG pipeline outputs. "
+            "Pass --overwrite if you intentionally want to replace them.\n"
+            f"Existing outputs:\n{shown}{extra}"
+        )
+
+
+def write_csv(df: pd.DataFrame, path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True, help="Input CSV file, e.g., Full_DSAA_Awards.csv or cleaned_nsf_awards_2000_2025.csv")
-    parser.add_argument("--outdir", default="methodkg_outputs_v7", help="Output directory")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build MethodKG processed award files and canonical graph edge files. "
+            "Processed award/flag/sample/report files are written to --processed_dir, "
+            "while graph edge CSVs are written to --edges_dir."
+        )
+    )
+    parser.add_argument(
+        "--input",
+        default="data/raw/Full_DSAA_Awards.csv",
+        help="Input CSV file. Default: data/raw/Full_DSAA_Awards.csv",
+    )
+    parser.add_argument(
+        "--repo_root",
+        default=None,
+        help="Repository root. Default: current working directory.",
+    )
+    parser.add_argument(
+        "--processed_dir",
+        default=None,
+        help=(
+            "Directory for processed award outputs. Default: "
+            "data/processed/methodkg_outputs_v7_clustered_from_cleaned"
+        ),
+    )
+    parser.add_argument(
+        "--edges_dir",
+        default=None,
+        help="Directory for edge CSV outputs. Default: data/edges",
+    )
+    parser.add_argument(
+        "--outdir",
+        default=None,
+        help=(
+            "Deprecated alias for --processed_dir. Kept only for backward "
+            "compatibility; edge files still go to --edges_dir."
+        ),
+    )
     parser.add_argument("--start_year", type=int, default=2000)
     parser.add_argument("--end_year", type=int, default=2025)
     parser.add_argument("--sample_size", type=int, default=2500)
     parser.add_argument("--random_state", type=int, default=42)
     parser.add_argument("--drop_legacy_orgs", action="store_true", help="Drop NSFOrganization values outside DUE, DRL, EES, DGE, and EEC")
     parser.add_argument("--input_is_cleaned", action="store_true", help="Treat --input as a previously cleaned MethodKG awards CSV and skip raw cleaning")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing processed and edge outputs")
     parser.add_argument(
         "--duplicate_cluster_mode",
         choices=["award", "cluster_expand", "cluster_representative"],
@@ -2096,9 +2175,33 @@ def main():
     parser.add_argument("--allow_sample_size_overrun", action="store_true", help="Allow sample to exceed --sample_size to avoid splitting a duplicate cluster")
     args = parser.parse_args()
 
-    input_path = Path(args.input)
-    outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
+    repo_root = Path(args.repo_root).resolve() if args.repo_root else Path.cwd().resolve()
+    input_path = resolve_path(args.input, repo_root)
+
+    # Default layout used by the cleaned MethodKG repository.
+    processed_dir_value = args.processed_dir or args.outdir or "data/processed"
+    edges_dir_value = args.edges_dir or "data/edges"
+    processed_dir = resolve_path(processed_dir_value, repo_root)
+    edges_dir = resolve_path(edges_dir_value, repo_root)
+
+    if not input_path.exists():
+        raise FileNotFoundError(
+            f"Input file not found: {input_path}\n"
+            "Pass --input explicitly if your raw/cleaned award file has a different name."
+        )
+
+    processed_paths = [processed_dir / name for name in PROCESSED_OUTPUT_FILES]
+    edge_paths = [edges_dir / name for name in EDGE_OUTPUT_FILES]
+    check_overwrite(processed_paths + edge_paths, overwrite=args.overwrite)
+
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    edges_dir.mkdir(parents=True, exist_ok=True)
+
+    print("Resolved paths:")
+    print(f"  repo_root: {repo_root}")
+    print(f"  input: {input_path}")
+    print(f"  processed_dir: {processed_dir}")
+    print(f"  edges_dir: {edges_dir}")
 
     raw_df = pd.read_csv(input_path, dtype=str, encoding="utf-8-sig")
 
@@ -2150,32 +2253,40 @@ def main():
         drop_legacy_orgs=args.drop_legacy_orgs,
     )
 
-    cleaned_df.to_csv(outdir / "cleaned_nsf_awards_2000_2025.csv", index=False, encoding="utf-8-sig")
-    flagged_df.to_csv(outdir / "nsf_awards_with_methodology_flags.csv", index=False, encoding="utf-8-sig")
-    annotation_df.to_csv(outdir / "annotation_sample_2000_2025.csv", index=False, encoding="utf-8-sig")
-    award_pi_edges.to_csv(outdir / "award_pi_edges.csv", index=False, encoding="utf-8-sig")
-    pi_collab_edges.to_csv(outdir / "pi_collaboration_edges.csv", index=False, encoding="utf-8-sig")
-    award_inst_edges.to_csv(outdir / "award_institution_edges.csv", index=False, encoding="utf-8-sig")
-    award_program_edges.to_csv(outdir / "award_program_edges.csv", index=False, encoding="utf-8-sig")
-    project_text_cluster_report.to_csv(outdir / "project_text_cluster_report.csv", index=False, encoding="utf-8-sig")
-    annotation_project_text_cluster_report.to_csv(outdir / "annotation_project_text_cluster_report.csv", index=False, encoding="utf-8-sig")
-    report_df.to_csv(outdir / "data_quality_report.csv", index=False, encoding="utf-8-sig")
+    processed_outputs = {
+        "cleaned_nsf_awards_2000_2025.csv": cleaned_df,
+        "nsf_awards_with_methodology_flags.csv": flagged_df,
+        "annotation_sample_2000_2025.csv": annotation_df,
+        "project_text_cluster_report.csv": project_text_cluster_report,
+        "annotation_project_text_cluster_report.csv": annotation_project_text_cluster_report,
+        "data_quality_report.csv": report_df,
+    }
+    edge_outputs = {
+        "award_pi_edges.csv": award_pi_edges,
+        "pi_collaboration_edges.csv": pi_collab_edges,
+        "award_institution_edges.csv": award_inst_edges,
+        "award_program_edges.csv": award_program_edges,
+    }
 
-    print("Done. Files written to:", outdir.resolve())
-    for file in [
-        "cleaned_nsf_awards_2000_2025.csv",
-        "nsf_awards_with_methodology_flags.csv",
-        "annotation_sample_2000_2025.csv",
-        "award_pi_edges.csv",
-        "pi_collaboration_edges.csv",
-        "award_institution_edges.csv",
-        "award_program_edges.csv",
-        "project_text_cluster_report.csv",
-        "annotation_project_text_cluster_report.csv",
-        "data_quality_report.csv",
-    ]:
-        path = outdir / file
-        print(f"- {file}: {path.stat().st_size:,} bytes")
+    for name, frame in processed_outputs.items():
+        write_csv(frame, processed_dir / name)
+    for name, frame in edge_outputs.items():
+        write_csv(frame, edges_dir / name)
+
+    print("\nDone.")
+    print("Processed files written to:", processed_dir.resolve())
+    for name in PROCESSED_OUTPUT_FILES:
+        path = processed_dir / name
+        print(f"- {name}: {path.stat().st_size:,} bytes")
+
+    print("\nEdge files written to:", edges_dir.resolve())
+    for name in EDGE_OUTPUT_FILES:
+        path = edges_dir / name
+        print(f"- {name}: {path.stat().st_size:,} bytes")
+
+    print("\nCanonical data layout:")
+    print(f"  processed outputs: {processed_dir}")
+    print(f"  graph edges:       {edges_dir}")
 
 
 if __name__ == "__main__":
