@@ -1,6 +1,4 @@
-# MMR-MethodKG
-
-# MMR-MethodKG: Reproducibility README
+# MMR-MethodKG: A Temporal Text-Graph Benchmark for Mining Mixed-Methods Reporting Signals in NSF STEM & Engineering Education Awards
 
 This repository contains the data-processing, benchmark-construction, training, evaluation, and paper-summary code for **MMR-MethodKG**, a temporal text-graph benchmark for predicting mixed-methods methodology-reporting signals in NSF STEM and engineering education award abstracts.
 
