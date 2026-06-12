@@ -236,44 +236,80 @@ python data/scripts/create_methodkg_modeling_benchmark.py \
 ```
 
 This is the safest command for reviewers because it verifies reproducibility without overwriting the released benchmark.
-
 ## 5. Dataset Statistics
 
-The released labeled benchmark contains:
+The released benchmark contains a full NSF award graph and a 2,500-award human-labeled subset. The graph-level and labeled-benchmark statistics below match the counts reported in the paper.
+
+### 5.1 Graph and Benchmark Size
 
 ```text
-2,500 labeled awards
-2,330 unique project-text clusters
-119 duplicate project-text clusters
-289 rows in duplicate project-text clusters
+Awards in METHODKG-FULL:                     32,161
+Awards in METHODKG-LABELED:                   2,500
+Released edge rows:                         256,182
+
+Unique project clusters in labeled set:       2,330
+Duplicate project clusters:                     119
+Rows in duplicate clusters:                     289
+
+PI / Co-PI nodes:                            47,812
+Institution nodes:                            2,945
+Program nodes:                                  453
+NSF organization / division nodes:                5
+Directorate nodes:                                2
+State nodes:                                     56
+Award years:                                     26
+
+Award-investigator edges:                    85,110
+Award-institution edges:                     32,161
+Award-program edges:                         40,564
+PI-PI collaboration edges:                   98,347
 ```
 
-Primary binary targets:
+### 5.2 Sampling Strata
+
+The labeled benchmark was constructed using stratified sampling to include positive, negative, ambiguous, and hard-negative cases. The final sampling strata are:
+
+```text
+Explicit mixed-methods candidates:              434
+Implicit mixed-methods candidates:              433
+Design/integration-enriched awards:             369
+Quantitative-only hard negatives:               343
+Qualitative-only hard negatives:                336
+Method-heavy background awards:                 294
+Random background awards:                       291
+```
+
+These sampling strata describe how the benchmark was constructed. They are not the same as the supervised target-label distributions used for modeling.
+
+Because METHODKG-LABELED is enriched for methodology-relevant cases, label proportions in the labeled subset should not be interpreted as prevalence estimates for the full NSF award corpus.
+
+### 5.3 Supervised Target Distribution
+
+The released modeling file contains the derived target columns used for supervised prediction. The primary binary targets are:
 
 ```text
 target_integration_binary:
-  absent  = 2,210
-  present = 290
+  absent:   1,340   53.60%
+  present:  1,160   46.40%
 
 target_design_binary:
-  absent  = 2,318
-  present = 182
+  absent:     372   14.88%
+  present:  2,128   85.12%
 ```
 
-Main multiclass target:
+The main multiclass target is:
 
 ```text
 target_mmr_multiclass:
-  explicit_mmr             = 659
-  implicit_mmr             = 564
-  quant_only               = 343
-  qual_only                = 336
-  multi_method_not_mmr     = 306
-  no_method_signal         = 291
-  unclear                  = 1
+  explicit_mmr:             763   30.52%
+  implicit_mmr:             397   15.88%
+  no_method_signal:         372   14.88%
+  quant_only:               362   14.48%
+  multi_method_not_mmr:     338   13.52%
+  qual_only:                268   10.72%
 ```
 
-The labeled benchmark is enriched for methodology-relevant cases. These label proportions should not be interpreted as prevalence estimates for the full NSF corpus.
+These labels should be interpreted as methodology-reporting signals in NSF award abstracts, not as verification of the complete methodology ultimately used in the funded projects.
 
 ## 6. Evaluation Splits
 
@@ -298,34 +334,34 @@ Split sizes:
 
 ```text
 Random cluster-stratified:
-  train = 1,751
-  validation = 378
-  test = 371
+  train = 1,750
+  validation = 376
+  test = 374
 
 Temporal cluster-safe:
-  train = 1,249
-  validation = 387
-  test = 864
+  train = 1,257
+  validation = 346
+  test = 897
 
 EDU -> ENG cluster-safe:
-  train = 2,169
+  train = 2,158
   validation = none
-  test = 331
+  test = 342
 
 Cross-program cluster-safe:
-  train = 1,065
-  validation = 393
-  test = 1,042
+  train = 2,228
+  validation = 54
+  test = 218
 
 Cold-start PI cluster-safe:
-  train = 1,762
-  validation = 402
-  test = 336
+  train = 1,735
+  validation = 400
+  test = 365
 
 Cold-start institution cluster-safe:
-  train = 2,030
-  validation = 180
-  test = 290
+  train = 2,253
+  validation = 133
+  test = 114
 ```
 
 Split summaries and leakage checks are stored in:
@@ -335,7 +371,8 @@ data/benchmark/methodkg_benchmark_v3_split_summary.csv
 data/benchmark/methodkg_benchmark_v3_split_leakage_report.csv
 ```
 
-The split design reduces leakage from duplicate project-text clusters, future awards, cross-program transfer, cross-directorate transfer, and cold-start PI/institution settings.
+The split design reduces leakage from duplicate project-text clusters and supports evaluation under random, temporal, cross-program, EDU-to-ENG, cold-start PI, and cold-start institution generalization settings.
+
 
 ## 7. Model Family Shorthand
 
