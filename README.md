@@ -348,8 +348,17 @@ TG = text+graph models
 ```
 
 Additional control families include metadata-only and text+metadata models.
-
 ## 8. Code Locations for T, G, and TG Models
+
+The paper uses the following shorthand:
+
+```text
+T  = text-only models
+G  = graph-only models
+TG = text+graph models
+```
+
+The repository separates these model families by input modality.
 
 ### 8.1 Text-Only Models: T
 
@@ -394,25 +403,15 @@ GraphSAGE structural
 HGT structural
 ```
 
-Typical output folders:
+Typical outputs:
 
 ```text
-experiments/graph_only/historical_features/
-experiments/graph_only/node2vec_metapath2vec/
-experiments/graph_only/graphsage_structural/
-experiments/graph_only/hgt_structural/
+experiments/graph_only/
+paper_outputs/summaries/
+paper_outputs/tables/
 ```
 
-Typical summary files:
-
-```text
-paper_outputs/summaries/historical_features_metrics_summary.csv
-paper_outputs/summaries/node2vec_metapath2vec_metrics_summary.csv
-paper_outputs/summaries/graphsage_structural_metrics_summary.csv
-paper_outputs/summaries/hgt_structural_metrics_summary.csv
-```
-
-Graph-only models use graph-derived features or graph representations without award title/abstract text as classifier input.
+Graph-only models use relational context without award title/abstract text as classifier input.
 
 ### 8.3 Text+Graph Models: TG
 
@@ -422,12 +421,13 @@ Text+graph models are stored in:
 src/text_graph/
 ```
 
-Main subfolders:
+The text+graph family is divided into four variants:
 
 ```text
-src/text_graph/late_fusion/
-src/text_graph/simteg_graphsage/
-src/text_graph/text_hgt/
+TG1 = late fusion
+TG2 = SimTeG GraphSAGE with text-only node features
+TG3 = SimTeG GraphSAGE with text + structural node features
+TG4 = Text-HGT
 ```
 
 #### TG1: Late Fusion
@@ -454,9 +454,9 @@ paper_outputs/summaries/late_fusion_scibert_metrics_summary.csv
 paper_outputs/summaries/late_fusion_minilm_metrics_summary.csv
 ```
 
-TG1 concatenates text embeddings with graph-derived features and, when enabled, structured metadata.
+TG1 concatenates text embeddings with graph-derived features. When `--include_metadata` is used, the same late-fusion pipeline also includes structured award metadata.
 
-#### TG2/TG3: SimTeG-Style GraphSAGE
+#### TG2: SimTeG GraphSAGE with Text-Only Node Features
 
 Stored in:
 
@@ -475,11 +475,42 @@ src/text_graph/simteg_graphsage/run_simteg_all_splits.py
 Outputs:
 
 ```text
-experiments/text_graph/simteg_graphsage/
-paper_outputs/summaries/simteg_graphsage_metrics_summary.csv
+artifacts/features/simteg_text_embeddings_scibert_v1/
+artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1/
+experiments/text_graph/simteg_graphsage/tg2_text_only/
+paper_outputs/summaries/tg2_simteg_graphsage_text_only_metrics_summary.csv
+paper_outputs/tables/tg2_simteg_graphsage_text_only_test_metrics.csv
 ```
 
-This family first creates text embeddings for award nodes and then applies GraphSAGE-style graph propagation.
+TG2 uses SciBERT text embeddings as award-node features and disables additional structural node features during graph construction.
+
+#### TG3: SimTeG GraphSAGE with Text + Structural Node Features
+
+Stored in:
+
+```text
+src/text_graph/simteg_graphsage/
+```
+
+Main scripts:
+
+```text
+src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py
+src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py
+src/text_graph/simteg_graphsage/run_simteg_all_splits.py
+```
+
+Outputs:
+
+```text
+artifacts/features/simteg_text_embeddings_scibert_v1/
+artifacts/graphs/simteg_graphsage_data_scibert_structural_v1/
+experiments/text_graph/simteg_graphsage/tg3_text_structural/
+paper_outputs/summaries/tg3_simteg_graphsage_text_structural_metrics_summary.csv
+paper_outputs/tables/tg3_simteg_graphsage_text_structural_test_metrics.csv
+```
+
+TG3 uses the same SciBERT text embeddings as TG2 but keeps the default structural node features during graph construction.
 
 #### TG4: Text-HGT
 
@@ -494,6 +525,7 @@ Typical outputs:
 ```text
 experiments/text_graph/text_hgt/
 paper_outputs/summaries/text_hgt_metrics_summary.csv
+paper_outputs/tables/text_hgt_test_metrics.csv
 ```
 
 TG4 uses text-initialized award nodes with heterogeneous graph message passing over the MethodKG schema.
@@ -511,6 +543,7 @@ Typical outputs:
 ```text
 experiments/metadata_only/
 paper_outputs/summaries/
+paper_outputs/tables/
 ```
 
 These controls test whether contextual gains come from structured award metadata rather than graph structure.
@@ -519,7 +552,7 @@ These controls test whether contextual gains come from structured award metadata
 
 All commands should be run from the repository root.
 
-### 9.1 Text-Only Models
+### 9.1 Text-Only Models: T
 
 ```bash
 python src/text_only/run_text_all_splits.py \
@@ -539,7 +572,7 @@ paper_outputs/summaries/text_only_all_metrics_summary.csv
 paper_outputs/tables/text_only_all_test_metrics.csv
 ```
 
-### 9.2 TG1 Late Fusion SciBERT
+### 9.2 TG1: Late Fusion SciBERT
 
 Create SciBERT text embeddings:
 
@@ -549,7 +582,7 @@ python src/text_graph/late_fusion/create_text_embeddings.py \
   --overwrite
 ```
 
-Run late fusion:
+Run TG1 late fusion with SciBERT embeddings:
 
 ```bash
 python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
@@ -564,9 +597,10 @@ Outputs:
 artifacts/features/text_embeddings_scibert_mean_v1/
 experiments/text_graph/late_fusion_scibert/
 paper_outputs/summaries/late_fusion_scibert_metrics_summary.csv
+paper_outputs/tables/late_fusion_scibert_test_metrics.csv
 ```
 
-### 9.3 TG1 Late Fusion MiniLM
+### 9.3 TG1: Late Fusion MiniLM
 
 Create MiniLM embeddings:
 
@@ -576,7 +610,7 @@ python src/text_graph/late_fusion/create_text_embeddings.py \
   --overwrite
 ```
 
-Run late fusion:
+Run TG1 late fusion with MiniLM embeddings:
 
 ```bash
 python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
@@ -591,53 +625,120 @@ Outputs:
 artifacts/features/text_embeddings_minilm_v1/
 experiments/text_graph/late_fusion_minilm/
 paper_outputs/summaries/late_fusion_minilm_metrics_summary.csv
+paper_outputs/tables/late_fusion_minilm_test_metrics.csv
 ```
 
-### 9.4 TG2/TG3 SimTeG-Style GraphSAGE
+### 9.4 TG2: SimTeG GraphSAGE with Text-Only Node Features
 
-Create text embeddings:
+TG2 uses SciBERT text embeddings as award-node features and disables additional structural node features during graph construction.
+
+Step 1: create SciBERT text embeddings.
 
 ```bash
 python src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py \
   --model_name allenai/scibert_scivocab_uncased \
   --backend transformers \
+  --outdir artifacts/features/simteg_text_embeddings_scibert_v1 \
   --overwrite
 ```
 
-Build graph inputs:
+Step 2: build the TG2 graph with text-only node features.
 
 ```bash
 python src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py \
+  --text_embeddings artifacts/features/simteg_text_embeddings_scibert_v1/methodkg_simteg_text_embeddings.csv \
+  --outdir artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1 \
+  --no_structural_features \
   --overwrite
 ```
 
-Run SimTeG GraphSAGE across splits:
+Step 3: train and evaluate TG2.
 
 ```bash
 python src/text_graph/simteg_graphsage/run_simteg_all_splits.py \
+  --graph_dir artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1 \
+  --outdir experiments/text_graph/simteg_graphsage/tg2_text_only \
   --overwrite
 ```
 
-Outputs:
+Step 4: save TG2 summaries under variant-specific names.
 
-```text
-experiments/text_graph/simteg_graphsage/
-paper_outputs/summaries/simteg_graphsage_metrics_summary.csv
+```bash
+cp paper_outputs/summaries/simteg_graphsage_metrics_summary.csv \
+   paper_outputs/summaries/tg2_simteg_graphsage_text_only_metrics_summary.csv
+
+cp paper_outputs/tables/simteg_graphsage_test_metrics.csv \
+   paper_outputs/tables/tg2_simteg_graphsage_text_only_test_metrics.csv
 ```
 
-### 9.5 TG4 Text-HGT
+Expected outputs:
 
-The Text-HGT scripts are stored in:
+```text
+artifacts/features/simteg_text_embeddings_scibert_v1/
+artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1/
+experiments/text_graph/simteg_graphsage/tg2_text_only/
+paper_outputs/summaries/tg2_simteg_graphsage_text_only_metrics_summary.csv
+paper_outputs/tables/tg2_simteg_graphsage_text_only_test_metrics.csv
+```
+
+### 9.5 TG3: SimTeG GraphSAGE with Text + Structural Node Features
+
+TG3 uses the same SciBERT text embeddings as TG2 but keeps the default structural node features during graph construction.
+
+Step 1: create SciBERT text embeddings if they do not already exist.
+
+```bash
+python src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py \
+  --model_name allenai/scibert_scivocab_uncased \
+  --backend transformers \
+  --outdir artifacts/features/simteg_text_embeddings_scibert_v1 \
+  --overwrite
+```
+
+Step 2: build the TG3 graph with text + structural node features.
+
+```bash
+python src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py \
+  --text_embeddings artifacts/features/simteg_text_embeddings_scibert_v1/methodkg_simteg_text_embeddings.csv \
+  --outdir artifacts/graphs/simteg_graphsage_data_scibert_structural_v1 \
+  --overwrite
+```
+
+Step 3: train and evaluate TG3.
+
+```bash
+python src/text_graph/simteg_graphsage/run_simteg_all_splits.py \
+  --graph_dir artifacts/graphs/simteg_graphsage_data_scibert_structural_v1 \
+  --outdir experiments/text_graph/simteg_graphsage/tg3_text_structural \
+  --overwrite
+```
+
+Step 4: save TG3 summaries under variant-specific names.
+
+```bash
+cp paper_outputs/summaries/simteg_graphsage_metrics_summary.csv \
+   paper_outputs/summaries/tg3_simteg_graphsage_text_structural_metrics_summary.csv
+
+cp paper_outputs/tables/simteg_graphsage_test_metrics.csv \
+   paper_outputs/tables/tg3_simteg_graphsage_text_structural_test_metrics.csv
+```
+
+Expected outputs:
+
+```text
+artifacts/features/simteg_text_embeddings_scibert_v1/
+artifacts/graphs/simteg_graphsage_data_scibert_structural_v1/
+experiments/text_graph/simteg_graphsage/tg3_text_structural/
+paper_outputs/summaries/tg3_simteg_graphsage_text_structural_metrics_summary.csv
+paper_outputs/tables/tg3_simteg_graphsage_text_structural_test_metrics.csv
+```
+
+### 9.6 TG4: Text-HGT
+
+Text-HGT scripts are stored in:
 
 ```text
 src/text_graph/text_hgt/
-```
-
-Outputs:
-
-```text
-experiments/text_graph/text_hgt/
-paper_outputs/summaries/text_hgt_metrics_summary.csv
 ```
 
 Run the relevant script with `--help` to inspect arguments:
@@ -646,7 +747,15 @@ Run the relevant script with `--help` to inspect arguments:
 python src/text_graph/text_hgt/<script_name>.py --help
 ```
 
-### 9.6 Graph-Only Models
+Outputs:
+
+```text
+experiments/text_graph/text_hgt/
+paper_outputs/summaries/text_hgt_metrics_summary.csv
+paper_outputs/tables/text_hgt_test_metrics.csv
+```
+
+### 9.7 Graph-Only Models: G
 
 Graph-only scripts are stored in:
 
@@ -654,22 +763,21 @@ Graph-only scripts are stored in:
 src/graph_only/
 ```
 
-Outputs are written to:
-
-```text
-experiments/graph_only/
-paper_outputs/summaries/
-```
-
-Use:
+Run each graph-only script with `--help` to inspect its arguments:
 
 ```bash
 python src/graph_only/<script_name>.py --help
 ```
 
-to inspect the exact command for each graph-only family.
+Outputs:
 
-### 9.7 Metadata-Only Models
+```text
+experiments/graph_only/
+paper_outputs/summaries/
+paper_outputs/tables/
+```
+
+### 9.8 Metadata-Only Models
 
 Metadata-only scripts are stored in:
 
@@ -677,20 +785,19 @@ Metadata-only scripts are stored in:
 src/metadata_only/
 ```
 
-Outputs are written to:
-
-```text
-experiments/metadata_only/
-paper_outputs/summaries/
-```
-
-Use:
+Run each metadata-only script with `--help` to inspect its arguments:
 
 ```bash
 python src/metadata_only/<script_name>.py --help
 ```
 
-to inspect the exact command.
+Outputs:
+
+```text
+experiments/metadata_only/
+paper_outputs/summaries/
+paper_outputs/tables/
+```
 
 ## 10. Reported Metrics
 
