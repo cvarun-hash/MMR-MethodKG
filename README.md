@@ -20,13 +20,12 @@ MMR-MethodKG/
 
     processed/
       final_gold_labels_adjudicated.csv
-      methodkg_outputs_v7_clustered_from_cleaned/
-        cleaned_nsf_awards_2000_2025.csv
-        nsf_awards_with_methodology_flags.csv
-        annotation_sample_2000_2025.csv
-        data_quality_report.csv
-        project_text_cluster_report.csv
-        annotation_project_text_cluster_report.csv
+      cleaned_nsf_awards_2000_2025.csv
+      nsf_awards_with_methodology_flags.csv
+      annotation_sample_2000_2025.csv
+      data_quality_report.csv
+      project_text_cluster_report.csv
+      annotation_project_text_cluster_report.csv
 
     edges/
       award_pi_edges.csv
@@ -267,18 +266,15 @@ PI-PI collaboration edges:                   98,347
 The labeled benchmark was constructed using stratified sampling to include positive, negative, ambiguous, and hard-negative cases. The final sampling strata are:
 
 ```text
-Explicit mixed-methods candidates:              434
-Implicit mixed-methods candidates:              433
-Design/integration-enriched awards:             369
-Quantitative-only hard negatives:               343
-Qualitative-only hard negatives:                336
-Method-heavy background awards:                 294
-Random background awards:                       291
+Explicit mixed-methods awards:                  763
+Implicit mixed-methods awards:                  397
+Design/integration-enriched non-MMR awards:     338
+Quantitative-only hard negatives:               362
+Qualitative-only hard negatives:                268
+Random/background no-method-signal awards:      372
 ```
 
 These sampling strata describe how the benchmark was constructed. They are not the same as the supervised target-label distributions used for modeling.
-
-Because METHODKG-LABELED is enriched for methodology-relevant cases, label proportions in the labeled subset should not be interpreted as prevalence estimates for the full NSF award corpus.
 
 ### 5.3 Supervised Target Distribution
 
@@ -1174,7 +1170,7 @@ Dataset statistics are reported in the paper and stored in:
 data/benchmark/methodkg_benchmark_v3_summary.json
 data/benchmark/methodkg_benchmark_v3_label_quality_report.csv
 data/benchmark/methodkg_benchmark_v3_split_summary.csv
-data/processed/methodkg_outputs_v7_clustered_from_cleaned/data_quality_report.csv
+data/processed/data_quality_report.csv
 ```
 
 ### 13.6 Train/Validation/Test Splits
@@ -1209,7 +1205,7 @@ data/scripts/create_methodkg_modeling_benchmark.py
 Quality reports are written to:
 
 ```text
-data/processed/methodkg_outputs_v7_clustered_from_cleaned/data_quality_report.csv
+data/processed/data_quality_report.csv
 data/benchmark/methodkg_benchmark_v3_label_quality_report.csv
 data/benchmark/methodkg_benchmark_v3_feature_manifest.csv
 ```
