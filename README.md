@@ -64,7 +64,6 @@ MMR-MethodKG/
 
   paper_outputs/
     summaries/
-    tables/
 
   requirements.txt
   README.md
@@ -153,7 +152,7 @@ python data/scripts/build_methodkg_pipeline.py \
 This writes processed award files to:
 
 ```text
-data/processed/methodkg_outputs_v7_clustered_from_cleaned/
+data/processed/
 ```
 
 Expected processed outputs:
@@ -186,7 +185,7 @@ If the cleaned awards file already exists, reviewers may rebuild flags, annotati
 
 ```bash
 python data/scripts/build_methodkg_pipeline.py \
-  --input data/processed/methodkg_outputs_v7_clustered_from_cleaned/cleaned_nsf_awards_2000_2025.csv \
+  --input data/processed/cleaned_nsf_awards_2000_2025.csv \
   --input_is_cleaned \
   --overwrite
 ```
@@ -385,17 +384,7 @@ TG = text+graph models
 ```
 
 Additional control families include metadata-only and text+metadata models.
-## 8. Code Locations for T, G, and TG Models
-
-The paper uses the following shorthand:
-
-```text
-T  = text-only models
-G  = graph-only models
-TG = text+graph models
-```
-
-The repository separates these model families by input modality.
+## 8. Code Locations for T, G, TG, and Metadata-Control Models
 
 ### 8.1 Text-Only Models: T
 
@@ -413,12 +402,11 @@ src/text_only/run_text_baselines.py
 src/text_only/train_transformer_text.py
 ```
 
-Outputs:
+Primary outputs:
 
 ```text
 experiments/text_only/text_only_all/
 paper_outputs/summaries/text_only_all_metrics_summary.csv
-paper_outputs/tables/text_only_all_test_metrics.csv
 ```
 
 This family includes regex baselines, TF-IDF logistic regression, TF-IDF SVM, frozen MiniLM embedding classifiers, and SciBERT fine-tuning.
@@ -435,17 +423,19 @@ Graph-only model families include:
 
 ```text
 historical graph features
-node2vec / metapath2vec
+node2vec / metapath2vec walk embeddings
 GraphSAGE structural
 HGT structural
 ```
 
-Typical outputs:
+Primary outputs include:
 
 ```text
 experiments/graph_only/
-paper_outputs/summaries/
-paper_outputs/tables/
+paper_outputs/summaries/graph_only_historical_features_metrics_summary.csv
+paper_outputs/summaries/walk_embedding_metrics_summary.csv
+paper_outputs/summaries/graphsage_structural_metrics_summary.csv
+paper_outputs/summaries/hgt_structural_metrics_summary.csv
 ```
 
 Graph-only models use relational context without award title/abstract text as classifier input.
@@ -458,13 +448,12 @@ Text+graph models are stored in:
 src/text_graph/
 ```
 
-The text+graph family is divided into four variants:
+The released text+graph family is organized as:
 
 ```text
-TG1 = late fusion
-TG2 = SimTeG GraphSAGE with text-only node features
-TG3 = SimTeG GraphSAGE with text + structural node features
-TG4 = Text-HGT
+TG1 = Late Fusion
+TG2 = SimTeG-style SciBERT + GraphSAGE
+TG3 = Text-HGT
 ```
 
 #### TG1: Late Fusion
@@ -479,21 +468,43 @@ Main scripts:
 
 ```text
 src/text_graph/late_fusion/create_text_embeddings.py
+src/text_graph/late_fusion/run_late_fusion_baselines.py
 src/text_graph/late_fusion/run_late_fusion_all_splits.py
+src/text_graph/late_fusion/summarize_late_fusion_results.py
 ```
 
-Outputs:
+Primary outputs:
 
 ```text
-experiments/text_graph/late_fusion_scibert/
-experiments/text_graph/late_fusion_minilm/
+artifacts/features/text_embeddings_scibert_mean_v1/
+artifacts/features/text_embeddings_minilm_v1/
+experiments/text_graph/late_fusion_scibert/primary/
+experiments/text_graph/late_fusion_minilm/primary/
 paper_outputs/summaries/late_fusion_scibert_metrics_summary.csv
 paper_outputs/summaries/late_fusion_minilm_metrics_summary.csv
 ```
 
-TG1 concatenates text embeddings with graph-derived features. When `--include_metadata` is used, the same late-fusion pipeline also includes structured award metadata.
+TG1 concatenates frozen award-text embeddings with graph-derived representations. When `--include_metadata` is used, the same late-fusion pipeline also includes structured award metadata. This should be interpreted as the full-feature TG1 late-fusion setting, not as a separate model family.
 
-#### TG2: SimTeG GraphSAGE with Text-Only Node Features
+TG1 also supports optional feature-group ablations through explicit `--outdir` and `--feature_groups` arguments. These create sibling folders under:
+
+```text
+experiments/text_graph/late_fusion_scibert/
+experiments/text_graph/late_fusion_minilm/
+```
+
+The ablation folders are:
+
+```text
+ablation_text_only
+ablation_text_graphhist
+ablation_text_walkemb
+ablation_text_allgraph_no_metadata
+```
+
+These folders are not automatically created by the primary TG1 command. They are created only by separate ablation commands.
+
+#### TG2: SimTeG-Style SciBERT + GraphSAGE
 
 Stored in:
 
@@ -507,49 +518,19 @@ Main scripts:
 src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py
 src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py
 src/text_graph/simteg_graphsage/run_simteg_all_splits.py
+src/text_graph/simteg_graphsage/summarize_simteg_results.py
 ```
 
-Outputs:
+Primary outputs:
 
 ```text
 artifacts/features/simteg_text_embeddings_scibert_v1/
-artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1/
-experiments/text_graph/simteg_graphsage/tg2_text_only/
-paper_outputs/summaries/tg2_simteg_graphsage_text_only_metrics_summary.csv
-paper_outputs/tables/tg2_simteg_graphsage_text_only_test_metrics.csv
+artifacts/graphs/simteg_graphsage_data_scibert_v1/
+experiments/text_graph/simteg_graphsage/
+paper_outputs/summaries/simteg_graphsage_metrics_summary.csv
 ```
 
-TG2 uses SciBERT text embeddings as award-node features and disables additional structural node features during graph construction.
-
-#### TG3: SimTeG GraphSAGE with Text + Structural Node Features
-
-Stored in:
-
-```text
-src/text_graph/simteg_graphsage/
-```
-
-Main scripts:
-
-```text
-src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py
-src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py
-src/text_graph/simteg_graphsage/run_simteg_all_splits.py
-```
-
-Outputs:
-
-```text
-artifacts/features/simteg_text_embeddings_scibert_v1/
-artifacts/graphs/simteg_graphsage_data_scibert_structural_v1/
-experiments/text_graph/simteg_graphsage/tg3_text_structural/
-paper_outputs/summaries/tg3_simteg_graphsage_text_structural_metrics_summary.csv
-paper_outputs/tables/tg3_simteg_graphsage_text_structural_test_metrics.csv
-```
-
-TG3 uses the same SciBERT text embeddings as TG2 but keeps the default structural node features during graph construction.
-
-#### TG4: Text-HGT
+#### TG3: Text-HGT
 
 Stored in:
 
@@ -557,33 +538,48 @@ Stored in:
 src/text_graph/text_hgt/
 ```
 
-Typical outputs:
+Primary outputs:
 
 ```text
 experiments/text_graph/text_hgt/
 paper_outputs/summaries/text_hgt_metrics_summary.csv
-paper_outputs/tables/text_hgt_test_metrics.csv
 ```
 
-TG4 uses text-initialized award nodes with heterogeneous graph message passing over the MethodKG schema.
+TG3 uses text-initialized award nodes with heterogeneous graph message passing over the MethodKG schema.
 
 ### 8.4 Metadata-Only and Text+Metadata Controls
 
-Metadata-only and text+metadata control models are stored in:
+Metadata-only and text+metadata controls are stored in:
 
 ```text
-src/metadata_only/
+src/metadata_ablations/
 ```
 
-Typical outputs:
+Primary outputs:
 
 ```text
 experiments/metadata_only/
-paper_outputs/summaries/
-paper_outputs/tables/
+experiments/text_graph/text_metadata_scibert/
+paper_outputs/summaries/metadata_only_metrics_summary.csv
+paper_outputs/summaries/text_metadata_scibert_metrics_summary.csv
 ```
 
-These controls test whether contextual gains come from structured award metadata rather than graph structure.
+The metadata-only control uses structured award metadata without title/abstract text and without graph features. The text+metadata control combines precomputed text embeddings with structured metadata, but does not use graph-only features, node2vec, metapath2vec, GraphSAGE, or HGT outputs.
+
+The metadata-control scripts automatically use available metadata fields such as:
+
+```text
+start_year, AwardInstrument, NSFDirectorate, NSFOrganization,
+Program(s), ProgramElementCode(s), primary_program_key,
+organization_clean, State, team_size, num_pis, num_copis
+```
+
+They exclude leakage-prone or text-derived columns such as:
+
+```text
+label_*, target_*, candidate_*, annotation_*, review_priority,
+annotation_guidance, award_amount, title_clean, abstract_clean
+```
 
 ## 9. Running the Main Experiments
 
@@ -600,16 +596,15 @@ python src/text_only/run_text_all_splits.py \
   --transformer_splits split_random_cluster_stratified split_temporal_cluster_safe
 ```
 
-Outputs:
+Expected outputs:
 
 ```text
 experiments/text_only/text_only_all/
 artifacts/features/text_embeddings_minilm_v1/
 paper_outputs/summaries/text_only_all_metrics_summary.csv
-paper_outputs/tables/text_only_all_test_metrics.csv
 ```
 
-### 9.2 TG1: Late Fusion SciBERT
+### 9.2 TG1: Late Fusion SciBERT Primary Run
 
 Create SciBERT text embeddings:
 
@@ -619,7 +614,13 @@ python src/text_graph/late_fusion/create_text_embeddings.py \
   --overwrite
 ```
 
-Run TG1 late fusion with SciBERT embeddings:
+Expected embedding output:
+
+```text
+artifacts/features/text_embeddings_scibert_mean_v1/
+```
+
+Run TG1 Late Fusion with SciBERT embeddings:
 
 ```bash
 python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
@@ -628,16 +629,20 @@ python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
   --include_metadata
 ```
 
-Outputs:
+Expected outputs:
 
 ```text
-artifacts/features/text_embeddings_scibert_mean_v1/
-experiments/text_graph/late_fusion_scibert/
+experiments/text_graph/late_fusion_scibert/primary/
 paper_outputs/summaries/late_fusion_scibert_metrics_summary.csv
-paper_outputs/tables/late_fusion_scibert_test_metrics.csv
 ```
 
-### 9.3 TG1: Late Fusion MiniLM
+Because `--include_metadata` is used, this primary TG1 run corresponds to:
+
+```text
+SciBERT text embeddings + graph-derived features + structured metadata
+```
+
+### 9.3 TG1: Late Fusion MiniLM Primary Run
 
 Create MiniLM embeddings:
 
@@ -647,7 +652,13 @@ python src/text_graph/late_fusion/create_text_embeddings.py \
   --overwrite
 ```
 
-Run TG1 late fusion with MiniLM embeddings:
+Expected embedding output:
+
+```text
+artifacts/features/text_embeddings_minilm_v1/
+```
+
+Run TG1 Late Fusion with MiniLM embeddings:
 
 ```bash
 python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
@@ -656,18 +667,167 @@ python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
   --include_metadata
 ```
 
-Outputs:
+Expected outputs:
 
 ```text
-artifacts/features/text_embeddings_minilm_v1/
-experiments/text_graph/late_fusion_minilm/
+experiments/text_graph/late_fusion_minilm/primary/
 paper_outputs/summaries/late_fusion_minilm_metrics_summary.csv
-paper_outputs/tables/late_fusion_minilm_test_metrics.csv
 ```
 
-### 9.4 TG2: SimTeG GraphSAGE with Text-Only Node Features
+Because `--include_metadata` is used, this primary TG1 run corresponds to:
 
-TG2 uses SciBERT text embeddings as award-node features and disables additional structural node features during graph construction.
+```text
+MiniLM text embeddings + graph-derived features + structured metadata
+```
+
+### 9.4 TG1 Feature-Group Ablations
+
+The primary TG1 commands above create or refresh only the `primary/` folder for the selected embedding family:
+
+```text
+experiments/text_graph/late_fusion_scibert/primary/
+experiments/text_graph/late_fusion_minilm/primary/
+```
+
+They do not automatically create the sibling ablation folders. The ablation folders are created by separate runs that explicitly set `--outdir` and restrict active inputs with `--feature_groups`.
+
+Supported feature-group names and their artifact sources are:
+
+```text
+text_embeddings
+  SciBERT -> artifacts/features/text_embeddings_scibert_mean_v1/methodkg_text_embeddings.csv
+  MiniLM  -> artifacts/features/text_embeddings_minilm_v1/methodkg_text_embeddings.csv
+
+historical_graph_features
+  artifacts/features/graph_features_v1/methodkg_graph_only_features.csv
+
+node2vec
+  artifacts/features/walk_embeddings_v1/node2vec_award_embeddings.csv
+
+metapath2vec
+  artifacts/features/walk_embeddings_v1/metapath2vec_award_embeddings.csv
+
+metadata
+  enabled through --include_metadata, not used in the no-metadata ablations below
+```
+
+#### 9.4.1 SciBERT TG1 ablations
+
+Create SciBERT embeddings first if they do not already exist:
+
+```bash
+python src/text_graph/late_fusion/create_text_embeddings.py \
+  --embedding_family scibert \
+  --overwrite
+```
+
+Text-only embeddings, with no graph features and no metadata:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family scibert \
+  --outdir experiments/text_graph/late_fusion_scibert/ablation_text_only \
+  --overwrite \
+  --feature_groups text_embeddings
+```
+
+Text plus historical graph features:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family scibert \
+  --outdir experiments/text_graph/late_fusion_scibert/ablation_text_graphhist \
+  --overwrite \
+  --feature_groups text_embeddings historical_graph_features
+```
+
+Text plus walk-based graph embeddings:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family scibert \
+  --outdir experiments/text_graph/late_fusion_scibert/ablation_text_walkemb \
+  --overwrite \
+  --feature_groups text_embeddings node2vec metapath2vec
+```
+
+Text plus all graph-derived features, but no metadata:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family scibert \
+  --outdir experiments/text_graph/late_fusion_scibert/ablation_text_allgraph_no_metadata \
+  --overwrite \
+  --feature_groups text_embeddings historical_graph_features node2vec metapath2vec
+```
+
+#### 9.4.2 MiniLM TG1 ablations
+
+Create MiniLM embeddings first if they do not already exist:
+
+```bash
+python src/text_graph/late_fusion/create_text_embeddings.py \
+  --embedding_family minilm \
+  --overwrite
+```
+
+Text-only embeddings, with no graph features and no metadata:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family minilm \
+  --outdir experiments/text_graph/late_fusion_minilm/ablation_text_only \
+  --overwrite \
+  --feature_groups text_embeddings
+```
+
+Text plus historical graph features:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family minilm \
+  --outdir experiments/text_graph/late_fusion_minilm/ablation_text_graphhist \
+  --overwrite \
+  --feature_groups text_embeddings historical_graph_features
+```
+
+Text plus walk-based graph embeddings:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family minilm \
+  --outdir experiments/text_graph/late_fusion_minilm/ablation_text_walkemb \
+  --overwrite \
+  --feature_groups text_embeddings node2vec metapath2vec
+```
+
+Text plus all graph-derived features, but no metadata:
+
+```bash
+python src/text_graph/late_fusion/run_late_fusion_all_splits.py \
+  --embedding_family minilm \
+  --outdir experiments/text_graph/late_fusion_minilm/ablation_text_allgraph_no_metadata \
+  --overwrite \
+  --feature_groups text_embeddings historical_graph_features node2vec metapath2vec
+```
+
+Each ablation folder has the same internal layout as the primary folder. Results are organized by target, split, and classifier model. Typical files include:
+
+```text
+metrics.csv
+predictions.csv
+confusion_matrix.csv
+classification_report.json
+run_summary.json
+feature_manifest.csv
+metrics_all_models.csv
+```
+
+The released paper-level summaries should use the primary TG1 rollups unless the paper explicitly reports an ablation table. If paper-level rollups are generated after an ablation run, copy or rename them immediately to avoid overwriting the primary rollups.
+
+### 9.5 TG2: SimTeG-Style SciBERT + GraphSAGE
+
+TG2 creates SciBERT text embeddings for award nodes and then trains GraphSAGE over the MethodKG award graph.
 
 Step 1: create SciBERT text embeddings.
 
@@ -679,13 +839,12 @@ python src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py \
   --overwrite
 ```
 
-Step 2: build the TG2 graph with text-only node features.
+Step 2: build the SimTeG GraphSAGE graph.
 
 ```bash
 python src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py \
   --text_embeddings artifacts/features/simteg_text_embeddings_scibert_v1/methodkg_simteg_text_embeddings.csv \
-  --outdir artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1 \
-  --no_structural_features \
+  --outdir artifacts/graphs/simteg_graphsage_data_scibert_v1 \
   --overwrite
 ```
 
@@ -693,84 +852,22 @@ Step 3: train and evaluate TG2.
 
 ```bash
 python src/text_graph/simteg_graphsage/run_simteg_all_splits.py \
-  --graph_dir artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1 \
-  --outdir experiments/text_graph/simteg_graphsage/tg2_text_only \
+  --graph_dir artifacts/graphs/simteg_graphsage_data_scibert_v1 \
+  --outdir experiments/text_graph/simteg_graphsage \
   --overwrite
-```
-
-Step 4: save TG2 summaries under variant-specific names.
-
-```bash
-cp paper_outputs/summaries/simteg_graphsage_metrics_summary.csv \
-   paper_outputs/summaries/tg2_simteg_graphsage_text_only_metrics_summary.csv
-
-cp paper_outputs/tables/simteg_graphsage_test_metrics.csv \
-   paper_outputs/tables/tg2_simteg_graphsage_text_only_test_metrics.csv
 ```
 
 Expected outputs:
 
 ```text
 artifacts/features/simteg_text_embeddings_scibert_v1/
-artifacts/graphs/simteg_graphsage_data_scibert_text_only_v1/
-experiments/text_graph/simteg_graphsage/tg2_text_only/
-paper_outputs/summaries/tg2_simteg_graphsage_text_only_metrics_summary.csv
-paper_outputs/tables/tg2_simteg_graphsage_text_only_test_metrics.csv
+artifacts/graphs/simteg_graphsage_data_scibert_v1/
+experiments/text_graph/simteg_graphsage/
+paper_outputs/summaries/simteg_graphsage_metrics_summary.csv
 ```
 
-### 9.5 TG3: SimTeG GraphSAGE with Text + Structural Node Features
 
-TG3 uses the same SciBERT text embeddings as TG2 but keeps the default structural node features during graph construction.
-
-Step 1: create SciBERT text embeddings if they do not already exist.
-
-```bash
-python src/text_graph/simteg_graphsage/create_simteg_text_embeddings.py \
-  --model_name allenai/scibert_scivocab_uncased \
-  --backend transformers \
-  --outdir artifacts/features/simteg_text_embeddings_scibert_v1 \
-  --overwrite
-```
-
-Step 2: build the TG3 graph with text + structural node features.
-
-```bash
-python src/text_graph/simteg_graphsage/build_simteg_graphsage_graph.py \
-  --text_embeddings artifacts/features/simteg_text_embeddings_scibert_v1/methodkg_simteg_text_embeddings.csv \
-  --outdir artifacts/graphs/simteg_graphsage_data_scibert_structural_v1 \
-  --overwrite
-```
-
-Step 3: train and evaluate TG3.
-
-```bash
-python src/text_graph/simteg_graphsage/run_simteg_all_splits.py \
-  --graph_dir artifacts/graphs/simteg_graphsage_data_scibert_structural_v1 \
-  --outdir experiments/text_graph/simteg_graphsage/tg3_text_structural \
-  --overwrite
-```
-
-Step 4: save TG3 summaries under variant-specific names.
-
-```bash
-cp paper_outputs/summaries/simteg_graphsage_metrics_summary.csv \
-   paper_outputs/summaries/tg3_simteg_graphsage_text_structural_metrics_summary.csv
-
-cp paper_outputs/tables/simteg_graphsage_test_metrics.csv \
-   paper_outputs/tables/tg3_simteg_graphsage_text_structural_test_metrics.csv
-```
-
-Expected outputs:
-
-```text
-artifacts/features/simteg_text_embeddings_scibert_v1/
-artifacts/graphs/simteg_graphsage_data_scibert_structural_v1/
-experiments/text_graph/simteg_graphsage/tg3_text_structural/
-paper_outputs/summaries/tg3_simteg_graphsage_text_structural_metrics_summary.csv
-paper_outputs/tables/tg3_simteg_graphsage_text_structural_test_metrics.csv
-```
-
-### 9.6 TG4: Text-HGT
+### 9.6 TG3: Text-HGT
 
 Text-HGT scripts are stored in:
 
@@ -784,12 +881,11 @@ Run the relevant script with `--help` to inspect arguments:
 python src/text_graph/text_hgt/<script_name>.py --help
 ```
 
-Outputs:
+Expected outputs:
 
 ```text
 experiments/text_graph/text_hgt/
 paper_outputs/summaries/text_hgt_metrics_summary.csv
-paper_outputs/tables/text_hgt_test_metrics.csv
 ```
 
 ### 9.7 Graph-Only Models: G
@@ -800,68 +896,92 @@ Graph-only scripts are stored in:
 src/graph_only/
 ```
 
-Run each graph-only script with `--help` to inspect its arguments:
+Run each graph-only script with `--help` to inspect arguments:
 
 ```bash
 python src/graph_only/<script_name>.py --help
 ```
 
-Outputs:
+Expected outputs:
 
 ```text
 experiments/graph_only/
-paper_outputs/summaries/
-paper_outputs/tables/
+paper_outputs/summaries/graph_only_historical_features_metrics_summary.csv
+paper_outputs/summaries/walk_embedding_metrics_summary.csv
+paper_outputs/summaries/graphsage_structural_metrics_summary.csv
+paper_outputs/summaries/hgt_structural_metrics_summary.csv
 ```
 
-### 9.8 Metadata-Only Models
+### 9.8 Metadata-Only and Text+Metadata Controls
 
-Metadata-only scripts are stored in:
+Metadata-control scripts are stored in:
 
 ```text
-src/metadata_only/
+src/metadata_ablations/
 ```
 
-Run each metadata-only script with `--help` to inspect its arguments:
+#### 9.8.1 Metadata-only control
 
 ```bash
-python src/metadata_only/<script_name>.py --help
+python src/metadata_ablations/run_metadata_all_splits.py \
+  --benchmark data/benchmark/methodkg_labeled_benchmark_v3_modeling.csv \
+  --outdir experiments/metadata_only \
+  --targets target_integration_binary target_design_binary target_mmr_multiclass \
+  --models dummy metadata_lr metadata_svm metadata_mlp metadata_extra_trees \
+  --tune_threshold
 ```
 
-Outputs:
+Summarize metadata-only results:
+
+```bash
+python src/metadata_ablations/summarize_metadata_results.py \
+  --results_dir experiments/metadata_only \
+  --output paper_outputs/summaries/metadata_only_metrics_summary.csv
+```
+
+Expected outputs:
 
 ```text
 experiments/metadata_only/
-paper_outputs/summaries/
-paper_outputs/tables/
+paper_outputs/summaries/metadata_only_metrics_summary.csv
 ```
 
-## 10. Reported Metrics
+#### 9.8.2 Text+metadata SciBERT control
 
-For binary tasks, the code reports:
+Create SciBERT embeddings first if they do not already exist:
+
+```bash
+python src/text_graph/late_fusion/create_text_embeddings.py \
+  --embedding_family scibert \
+  --overwrite
+```
+
+Run text+metadata with SciBERT embeddings:
+
+```bash
+python src/metadata_ablations/run_metadata_all_splits.py \
+  --benchmark data/benchmark/methodkg_labeled_benchmark_v3_modeling.csv \
+  --text_embeddings artifacts/features/text_embeddings_scibert_mean_v1/methodkg_text_embeddings.csv \
+  --outdir experiments/text_graph/text_metadata_scibert \
+  --targets target_integration_binary target_design_binary target_mmr_multiclass \
+  --models dummy metadata_lr metadata_svm metadata_mlp metadata_extra_trees \
+  --tune_threshold
+```
+
+Summarize text+metadata SciBERT results:
+
+```bash
+python src/metadata_ablations/summarize_metadata_results.py \
+  --results_dir experiments/text_graph/text_metadata_scibert \
+  --output paper_outputs/summaries/text_metadata_scibert_metrics_summary.csv
+```
+
+Expected outputs:
 
 ```text
-accuracy
-macro-F1
-positive-class F1
-precision
-recall
-ROC-AUC
-PR-AUC
-confusion matrix
+experiments/text_graph/text_metadata_scibert/
+paper_outputs/summaries/text_metadata_scibert_metrics_summary.csv
 ```
-
-For the multiclass task, the code reports:
-
-```text
-accuracy
-macro-F1
-weighted-F1
-classification report
-confusion matrix
-```
-
-The paper uses **macro-F1** as the main headline metric because the primary labels are imbalanced. Positive-class F1 and PR-AUC are supporting metrics for binary tasks.
 
 ## 11. Output Files
 
@@ -889,15 +1009,7 @@ graphsage_structural_metrics_summary.csv
 hgt_structural_metrics_summary.csv
 ```
 
-### 11.2 Paper Tables
-
-Compact table outputs are stored in:
-
-```text
-paper_outputs/tables/
-```
-
-### 11.3 Full Experiment Outputs
+### 11.2 Full Experiment Outputs
 
 Full experiment outputs are stored in:
 
@@ -921,7 +1033,7 @@ run_config.json
 
 Large model files, checkpoints, and caches may also appear in experiment subfolders depending on the model family.
 
-### 11.4 Artifacts
+### 11.3 Artifacts
 
 Cached embeddings and derived feature files are stored in:
 
@@ -1010,8 +1122,8 @@ The main empirical findings are:
 4. Text+graph models beat text-only only in selected settings.
 5. The clearest text+graph improvement is for design prediction under cross-program generalization.
 6. TG1 Late Fusion SciBERT is the strongest practical text+graph model.
-7. TG4 Text-HGT is useful among text+graph models for selected EDU-to-ENG transfer settings.
-8. TG2/TG3 SimTeG-style GraphSAGE is useful mainly for harder multiclass transfer/cold-start settings but does not surpass text-only overall.
+7. TG3 Text-HGT is useful among text+graph models for selected EDU-to-ENG transfer settings.
+8. TG2 SimTeG-style GraphSAGE is useful mainly for harder multiclass transfer/cold-start settings but does not surpass text-only overall.
 
 The main claims can be checked from:
 
@@ -1134,13 +1246,6 @@ The final adjudicated label file is:
 data/processed/final_gold_labels_adjudicated.csv
 ```
 
-Annotation and adjudication details are described in the paper. Label quality and reliability-related outputs are stored in:
-
-```text
-data/benchmark/methodkg_benchmark_v3_label_quality_report.csv
-data/benchmark/methodkg_benchmark_v3_reliability_report.csv
-```
-
 ### 13.10 Dependencies
 
 Dependencies are specified in:
@@ -1188,7 +1293,6 @@ Evaluation is integrated into each model-family script and writes metrics to:
 ```text
 experiments/
 paper_outputs/summaries/
-paper_outputs/tables/
 ```
 
 ### 13.13 Pretrained Models
@@ -1232,7 +1336,7 @@ Classical baselines can be run on CPU. Transformer and graph neural models are f
 
 ### 13.20 Computing Infrastructure
 
-The experiments were run in a Python/conda environment with Python 3.11. GPU acceleration is optional for transformer and graph neural models but recommended for full reruns.
+The experiments were run in a Python TIDE Cluster environment with Python 3.11, and 1 NVIDIA A100 GPU (80 GB VRAM)
 
 ## 14. Minimal Reviewer Commands
 
@@ -1283,9 +1387,3 @@ The released experimental results are tied to:
 ```text
 data/benchmark/methodkg_labeled_benchmark_v3_modeling.csv
 ```
-
-This file defines the official labels, feature columns, and split assignments used in the paper. Regenerating the benchmark with different split logic can change results. Therefore, the repository includes a comparison mode in the benchmark builder so reviewers can verify that regenerated benchmark outputs match the released benchmark before rerunning experiments.
-
-## 16. Contact
-
-For questions about the benchmark or reproduction, please contact the authors listed in the paper.
