@@ -51,7 +51,7 @@ MMR-MethodKG/
 
   src/
     text_only/
-    metadata_only/
+    metadata_ablations/
     graph_only/
     text_graph/
 
@@ -60,6 +60,7 @@ MMR-MethodKG/
     metadata_only/
     graph_only/
     text_graph/
+    text_metadata_scibert
 
   paper_outputs/
     summaries/
@@ -1116,8 +1117,9 @@ The main empirical findings are:
 4. Text+graph models beat text-only only in selected settings.
 5. The clearest text+graph improvement is for design prediction under cross-program generalization.
 6. TG1 Late Fusion SciBERT is the strongest practical text+graph model.
-7. TG3 Text-HGT is useful among text+graph models for selected EDU-to-ENG transfer settings.
-8. TG2 SimTeG-style GraphSAGE is useful mainly for harder multiclass transfer/cold-start settings but does not surpass text-only overall.
+7. TG2 SimTeG-style GraphSAGE is useful mainly for harder multiclass transfer/cold-start settings but does not surpass text-only overall.
+8. TG3 Text-HGT is useful among text+graph models for selected EDU-to-ENG transfer settings.
+   
 
 The main claims can be checked from:
 
